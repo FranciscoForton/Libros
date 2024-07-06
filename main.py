@@ -1,3 +1,5 @@
+import os
+import json
 import tkinter as tk
 from tkinter import ttk
 
@@ -74,6 +76,26 @@ def registrarUsuario():
             else:
                 estado.configure(text="Usuario registrado.")    
 
+                datos = {
+                "nombres" : nombres,
+                "apellidos" : apellidos,
+                "rut" : rut,
+                "numero" : numero,
+                "email" : email,
+                "clave" : clave
+                }
+
+                if os.path.exists('informacion.json'):
+                    with open('informacion.json', 'r') as archivo_json:
+                        usuarios = json.load(archivo_json)
+                else:
+                    usuarios = []
+
+                usuarios.append(datos)
+
+                with open('informacion.json', 'w') as archivo_json:
+                    json.dump(usuarios, archivo_json, indent=4)
+
         comprobarDatos()        
 
     btnRegistrar = ttk.Button(ventana_registro, text="Registrar", command=obtenerDatos)
@@ -82,6 +104,31 @@ def registrarUsuario():
     estado = tk.Label(ventana_registro)
     estado.pack()
 
+def registrarCliente():
+    ventana_registro_cliente = tk.Toplevel(ventana)
+    ventana_registro_cliente.title("Registro de cliente")
+    ventana_registro_cliente.geometry("400x600")
+
+    nomCliente = tk.Label(ventana_registro_cliente, text="Nombre")
+    nomCliente.pack(padx=10, pady=10)
+    entryNomCliente = ttk.Entry(ventana_registro_cliente)
+    entryNomCliente.pack(padx=10, pady=10)
+    apeCliente = tk.Label(ventana_registro_cliente, text="Apellido")
+    apeCliente.pack(padx=10, pady=10)
+    entryApeCliente = ttk.Entry(ventana_registro_cliente)
+    entryApeCliente.pack(padx=10, pady=10)
+    rutCliente = tk.Label(ventana_registro_cliente, text="RUT")
+    rutCliente.pack(padx=10, pady=10)
+    entryRutCliente = ttk.Entry(ventana_registro_cliente)
+    entryRutCliente.pack(padx=10, pady=10)
+    roles = ["Estudiante", "Docente"]
+    rolLabel = tk.Label(ventana_registro_cliente, text="Seleccione el rol")
+    rolLabel.pack(padx=10, pady=10)
+    rol = ttk.Combobox(ventana_registro_cliente, values= roles)
+    rol.pack(padx=10, pady=10)
+    btn_registrar_cliente = ttk.Button(ventana_registro_cliente, text="Registrar")
+    btn_registrar_cliente.pack(padx=20, pady=20)
+    
 
 btn_registrar_usuario = ttk.Button(ventana, text="Registrar Usuario", command=registrarUsuario)
 btn_registrar_usuario.pack(pady=10)    
@@ -98,7 +145,7 @@ btn_config_costos.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
 btn_revisar_deudas = ttk.Button(menu, text="Revisar deudas")
 btn_revisar_deudas.grid(row=0, column=2, padx=10, pady=10, sticky="ew")
 
-btn_registrar_cliente = ttk.Button(menu, text="Registrar cliente")
+btn_registrar_cliente = ttk.Button(menu, text="Registrar cliente", command=registrarCliente)
 btn_registrar_cliente.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
 
 btn_registrar_prestamo = ttk.Button(menu, text="Registrar préstamo")
