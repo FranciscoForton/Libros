@@ -2,6 +2,8 @@ import os
 import json
 import tkinter as tk
 from tkinter import ttk
+from tkcalendar import DateEntry
+from tkinter import messagebox
 
 ventana = tk.Tk()
 ventana.title("Préstamo de libros.")
@@ -9,6 +11,13 @@ ventana.geometry("800x600")
 
 nombreApp = tk.Label(ventana, text="Bienvenido al sistema para préstamos de libros")
 nombreApp.pack(pady=10)
+
+dueño = "INACAP"
+claveDueño = "123456"
+clientes = []
+usuarios = []
+libros = []
+usuarioActivo = ""
 
 def iniciarSesion():
     ventana_login = tk.Toplevel(ventana)
@@ -22,8 +31,27 @@ def iniciarSesion():
     contraUsuario.pack()
     entryContraseña = tk.Entry(ventana_login, show="*")
     entryContraseña.pack(padx=20, pady=20)
+    labelEstado = tk.Label(ventana_login, text="")
+    labelEstado.pack(padx=20, pady=10)
 
-    boton_ingresar = tk.Button(ventana_login, text="Ingresar")
+    def validarInicio():
+        user = entryUsuario.get()
+        password = entryContraseña.get()
+
+        if user == dueño and password == claveDueño:
+            messagebox.showinfo("Inicio de sesión exitoso", "¡Bienvenido!")
+            ventana_login.destroy()
+
+            btn_registrar_usuario.config(state="normal")
+            btn_config_costos.config(state="normal")
+            btn_registrar_cliente.config(state="normal")
+            btn_registrar_prestamo.config(state="normal")
+            btn_eliminar_prestamo.config(state="normal")
+
+        else:
+            labelEstado.configure(text="Credenciales erroneas")    
+
+    boton_ingresar = tk.Button(ventana_login, text="Ingresar", command=validarInicio)
     boton_ingresar.pack(pady=20)
 
     estado = tk.Label(ventana_login)
@@ -89,10 +117,7 @@ def registrarUsuario():
                     with open('informacion.json', 'r') as archivo_json:
                         usuarios = json.load(archivo_json)
                 else:
-                    usuarios = []
-
-                usuarios.append(datos)
-
+                    usuarios.append(datos)
                 with open('informacion.json', 'w') as archivo_json:
                     json.dump(usuarios, archivo_json, indent=4)
 
@@ -104,10 +129,76 @@ def registrarUsuario():
     estado = tk.Label(ventana_registro)
     estado.pack()
 
+btn_registrar_usuario = ttk.Button(ventana, text="Registrar Usuario", command=registrarUsuario, state="disabled")
+btn_registrar_usuario.pack(pady=10)    
+
+menu = tk.LabelFrame(ventana, text="Menú", borderwidth=2, relief="ridge")
+menu.pack(pady=20)
+
+def comprobarUsuarios():
+    ventana_usuarios = tk.Toplevel(ventana)
+    ventana_usuarios.title("Usuarios registrados")
+    ventana_usuarios.geometry("400x200")
+
+    labelUsuarios = tk.Label(ventana_usuarios, text="Usuarios registrados:")
+    labelUsuarios.pack(padx=20, pady=10)
+
+    selUsuariosRegistrado = ttk.Combobox(ventana_usuarios, values=usuarios)
+    selUsuariosRegistrado.pack(padx=20, pady=10)
+
+    btn_eliminar = ttk.Button(ventana_usuarios, text="Eliminar usuario")
+    btn_eliminar.pack(padx=20, pady=10)
+
+btn_comprobar_usuarios = ttk.Button(menu, text="Comprobar usuarios", command=comprobarUsuarios)
+btn_comprobar_usuarios.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+def configurarCostos():
+    ventana_costos = tk.Toplevel(ventana)
+    ventana_costos.title("Configurar costos roles")
+    ventana_costos.geometry("400x300")
+
+    labelCostos = tk.Label(ventana_costos, text="Costos asociados a dia de atraso para los roles del solicitante")
+    labelCostos.pack(padx=20, pady=10)
+    labelEstudiante = tk.Label(ventana_costos, text="Estudiante: ")
+    labelEstudiante.pack(padx=20, pady=10)
+    entryCostoEstudiante = ttk.Entry(ventana_costos)
+    entryCostoEstudiante.pack(padx=20, pady=10)
+    labelDocente = tk.Label(ventana_costos, text="Docente: ")
+    labelDocente.pack(padx=20, pady=10)
+    entryCostoDocente = ttk.Entry(ventana_costos)
+    entryCostoDocente.pack(padx=20, pady=10)
+
+    btn_fijar_costos = ttk.Button(ventana_costos, text="Registrar valores")
+    btn_fijar_costos.pack(padx=20, pady=10)
+
+btn_config_costos = ttk.Button(menu, text="Configurar costos", command=configurarCostos, state="disabled")
+btn_config_costos.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+
+def revisarDeudas():
+    ventana_deudas = tk.Toplevel(ventana)
+    ventana_deudas.title("Deudas clientes")
+    ventana_deudas.geometry("200x300")
+    
+    labelCliente = tk.Label(ventana_deudas, text="Seleccione al cliente:")
+    labelCliente.pack(padx=20, pady=10)
+    selCliente = ttk.Combobox(ventana_deudas, values="")
+    selCliente.pack(padx=20, pady=10)
+    labelDeuda = tk.Label(ventana_deudas, text="Deuda registrada:")
+    labelDeuda.pack(padx=20, pady=10)
+    segundoLabelDeuda = tk.Label(ventana_deudas, text="0")
+    segundoLabelDeuda.pack(padx=20, pady=10)
+    labelEstado = tk.Label(ventana_deudas, text="Estado de la deuda:")
+    labelEstado.pack(padx=20, pady=10)
+    segundoLabelEstado = tk.Label(ventana_deudas, text="0")
+    segundoLabelEstado.pack(padx=20, pady=10)
+
+btn_revisar_deudas = ttk.Button(menu, text="Revisar deudas", command=revisarDeudas)
+btn_revisar_deudas.grid(row=0, column=2, padx=10, pady=10, sticky="ew")
+
 def registrarCliente():
     ventana_registro_cliente = tk.Toplevel(ventana)
     ventana_registro_cliente.title("Registro de cliente")
-    ventana_registro_cliente.geometry("400x600")
+    ventana_registro_cliente.geometry("400x460")
 
     nomCliente = tk.Label(ventana_registro_cliente, text="Nombre")
     nomCliente.pack(padx=10, pady=10)
@@ -124,34 +215,72 @@ def registrarCliente():
     roles = ["Estudiante", "Docente"]
     rolLabel = tk.Label(ventana_registro_cliente, text="Seleccione el rol")
     rolLabel.pack(padx=10, pady=10)
-    rol = ttk.Combobox(ventana_registro_cliente, values= roles)
+    rol = ttk.Combobox(ventana_registro_cliente, values=roles)
     rol.pack(padx=10, pady=10)
     btn_registrar_cliente = ttk.Button(ventana_registro_cliente, text="Registrar")
     btn_registrar_cliente.pack(padx=20, pady=20)
-    
 
-btn_registrar_usuario = ttk.Button(ventana, text="Registrar Usuario", command=registrarUsuario)
-btn_registrar_usuario.pack(pady=10)    
-
-menu = tk.LabelFrame(ventana, text="Menú", borderwidth=2, relief="ridge")
-menu.pack(pady=20)
-
-btn_comprobar_usuarios = ttk.Button(menu, text="Comprobar usuarios")
-btn_comprobar_usuarios.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
-
-btn_config_costos = ttk.Button(menu, text="Configurar costos")
-btn_config_costos.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
-
-btn_revisar_deudas = ttk.Button(menu, text="Revisar deudas")
-btn_revisar_deudas.grid(row=0, column=2, padx=10, pady=10, sticky="ew")
-
-btn_registrar_cliente = ttk.Button(menu, text="Registrar cliente", command=registrarCliente)
+btn_registrar_cliente = ttk.Button(menu, text="Registrar cliente", command=registrarCliente, state="disabled")
 btn_registrar_cliente.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
 
-btn_registrar_prestamo = ttk.Button(menu, text="Registrar préstamo")
+def registrarPrestamo():
+    ventana_registrar_prestamo = tk.Toplevel(ventana)
+    ventana_registrar_prestamo.title("Registrar préstamo")
+    ventana_registrar_prestamo.geometry("400x500")    
+
+    labelCliente = ttk.Label(ventana_registrar_prestamo, text="Seleccione al cliente")
+    labelCliente.pack(padx=20, pady=10)
+    listaClientes = ttk.Combobox(ventana_registrar_prestamo, values=clientes)
+    listaClientes.pack(padx=10, pady=10)
+    labelLibros = ttk.Label(ventana_registrar_prestamo, text="Seleccione el libro")
+    labelLibros.pack(padx=20, pady=10)
+    listaLibros = ttk.Combobox(ventana_registrar_prestamo, values=libros)
+    listaLibros.pack(padx=20, pady=10)
+    labelPrestamo = ttk.Label(ventana_registrar_prestamo, text="Fecha de solicitud")
+    labelPrestamo.pack(padx=20, pady=10)
+    fechaPrestamo = DateEntry(ventana_registrar_prestamo, width=12, background="darkblue", foreground="white", borderwidth=2)
+    fechaPrestamo.pack(padx=20, pady=10)
+    labelDevolucion = ttk.Label(ventana_registrar_prestamo, text="Fecha de devolucion")
+    labelDevolucion.pack(padx=20, pady=10)
+    fechaDevolucion = DateEntry(ventana_registrar_prestamo, width=12, background="darkblue", foreground="white", borderwidth=2)
+    fechaDevolucion.pack(padx=20, pady=10)
+    labelTarifa = tk.Label(ventana_registrar_prestamo, text="Monto a cancelar por dia de atraso:")
+    labelTarifa.pack(padx=20, pady=10)
+    labelMonto = tk.Label(ventana_registrar_prestamo, text="0")
+    labelMonto.pack(padx=20, pady=10)
+
+    btn_registrar = ttk.Button(ventana_registrar_prestamo, text="Registrar préstamo")
+    btn_registrar.pack(padx=20, pady=10)
+
+btn_registrar_prestamo = ttk.Button(menu, text="Registrar préstamo", command=registrarPrestamo, state="disabled")
 btn_registrar_prestamo.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
 
-btn_eliminar_prestamo = ttk.Button(menu, text="Eliminar préstamo")
+def eliminarPrestamo():
+    ventana_eliminar_prestamo = tk.Toplevel(ventana)
+    ventana_eliminar_prestamo.title("Devolver préstamo")
+    ventana_eliminar_prestamo.geometry("400x460")
+
+    labelCliente = tk.Label(ventana_eliminar_prestamo, text="Seleccione al cliente")
+    labelCliente.pack(padx=20, pady=10)
+    selCliente = ttk.Combobox(ventana_eliminar_prestamo, values=clientes)
+    selCliente.pack(padx=20, pady=10)
+    labelLibro = tk.Label(ventana_eliminar_prestamo, text="Seleccion libro a devolver")
+    labelLibro.pack(padx=20, pady=10)
+    selLibro = ttk.Combobox(ventana_eliminar_prestamo, values="")
+    selLibro.pack(padx=20, pady=10)
+    labelFechaDevolucion = tk.Label(ventana_eliminar_prestamo, text="Fecha registrada para devolucion")
+    labelFechaDevolucion.pack(padx=20, pady=10)
+    fechaDevolucion = tk.Label(ventana_eliminar_prestamo, text="0")
+    fechaDevolucion.pack(padx=20, pady=10)
+    labelDeuda = tk.Label(ventana_eliminar_prestamo, text="Monto a cancelar")
+    labelDeuda.pack(padx=20, pady=10)
+    montoDeuda = tk.Label(ventana_eliminar_prestamo, text="0")
+    montoDeuda.pack(padx=20, pady=10)
+
+    btn_eliminar = ttk.Button(ventana_eliminar_prestamo, text="Eliminar préstamo")
+    btn_eliminar.pack(padx=20, pady=10)
+    
+btn_eliminar_prestamo = ttk.Button(menu, text="Devolver préstamo", command=eliminarPrestamo, state="disabled")
 btn_eliminar_prestamo.grid(row=1, column=2, padx=10, pady=10, sticky="ew")
 
 infoLegal = tk.Frame(ventana, borderwidth=2, relief="ridge")
