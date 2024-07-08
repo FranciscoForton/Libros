@@ -1,9 +1,18 @@
-import os
-import json
 import tkinter as tk
 from tkinter import ttk
 from tkcalendar import DateEntry
 from tkinter import messagebox
+import mysql.connector
+from mysql.connector import Error
+
+conexion = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="Biblioteca Inacap"
+)
+
+cursor = conexion.cursor()
 
 ventana = tk.Tk()
 ventana.title("Préstamo de libros.")
@@ -12,13 +21,11 @@ ventana.geometry("800x600")
 nombreApp = tk.Label(ventana, text="Bienvenido al sistema para préstamos de libros")
 nombreApp.pack(pady=10)
 
-dueño = "INACAP"
-claveDueño = "123456"
-clientes = []
-usuarios = []
+dueño = ""
+claveDueño = ""
 libros = []
 usuarioActivo = ""
-
+    
 def iniciarSesion():
     ventana_login = tk.Toplevel(ventana)
     ventana_login.title("Iniciar sesión")
@@ -65,18 +72,18 @@ def registrarUsuario():
     ventana_registro.title("Registrar usuario")
     ventana_registro.geometry("400x600")
 
-    nomUsuarioRegistro = ttk.Label(ventana_registro, text="Nombres:")
-    nomUsuarioRegistro.pack()
-    entryNomRegistro = ttk.Entry(ventana_registro, width=200)
-    entryNomRegistro.pack(padx=20, pady=20)
-    apeUsuarioRegistro = ttk.Label(ventana_registro, text="Apellidos:")
-    apeUsuarioRegistro.pack()
-    entryApeRegistro = ttk.Entry(ventana_registro, width=200)
-    entryApeRegistro.pack(padx=20, pady=20)
     rutUsuarioRegistro = ttk.Label(ventana_registro, text="RUT:")
     rutUsuarioRegistro.pack()
     entryRutRegistro = ttk.Entry(ventana_registro, width=200)
     entryRutRegistro.pack(padx=20, pady=20)
+    nomUsuarioRegistro = ttk.Label(ventana_registro, text="Nombre:")
+    nomUsuarioRegistro.pack()
+    entryNomRegistro = ttk.Entry(ventana_registro, width=200)
+    entryNomRegistro.pack(padx=20, pady=20)
+    apeUsuarioRegistro = ttk.Label(ventana_registro, text="Apellido:")
+    apeUsuarioRegistro.pack()
+    entryApeRegistro = ttk.Entry(ventana_registro, width=200)
+    entryApeRegistro.pack(padx=20, pady=20)
     numUsuarioRegistro = ttk.Label(ventana_registro, text="Número telefonico:")
     numUsuarioRegistro.pack()
     entryNumRegistro = ttk.Entry(ventana_registro, width=200)
@@ -91,35 +98,29 @@ def registrarUsuario():
     entryClaveRegistro.pack(padx=20, pady=20)
 
     def obtenerDatos():
-        nombres = entryNomRegistro.get()
-        apellidos = entryApeRegistro.get()
         rut = entryRutRegistro.get()
+        nombre = entryNomRegistro.get()
+        apellido = entryApeRegistro.get()
         numero = entryNumRegistro.get()
         email = entryEmailRegistro.get()
         clave = entryClaveRegistro.get()
 
         def comprobarDatos():
-            if nombres == "" or apellidos == "" or rut == "" or numero == "" or email == "" or clave == "":
+            if rut == "" or nombre == "" or apellido == ""  or numero == "" or email == "" or clave == "":
                 estado.configure(text="Favor de verificar informacion.")
-            else:
-                estado.configure(text="Usuario registrado.")    
+            else:   
+                insertar_usuario = "INSERT INTO usuarios (rut, nombre, apellido, telefono, correo, clave)VALUES (%s, %s, %s, %s, %s, %s)"
+                valores_usuario = (rut, nombre, apellido, numero, email, clave)
 
-                datos = {
-                "nombres" : nombres,
-                "apellidos" : apellidos,
-                "rut" : rut,
-                "numero" : numero,
-                "email" : email,
-                "clave" : clave
-                }
+                try:
+                    cursor.execute(insertar_usuario, valores_usuario)
+                    estado.configure(text="Usuario registrado con éxito!.")
 
-                if os.path.exists('informacion.json'):
-                    with open('informacion.json', 'r') as archivo_json:
-                        usuarios = json.load(archivo_json)
-                else:
-                    usuarios.append(datos)
-                with open('informacion.json', 'w') as archivo_json:
-                    json.dump(usuarios, archivo_json, indent=4)
+                except mysql.connector.IntegrityError as e:
+                    if e.errno == 1062:
+                        estado.configure(text=f"Error: El RUT: {rut} ya está registrado en la base de datos.")
+                    else:
+                        estado.configure(text=f"Error: {e}")
 
         comprobarDatos()        
 
@@ -143,7 +144,12 @@ def comprobarUsuarios():
     labelUsuarios = tk.Label(ventana_usuarios, text="Usuarios registrados:")
     labelUsuarios.pack(padx=20, pady=10)
 
-    selUsuariosRegistrado = ttk.Combobox(ventana_usuarios, values=usuarios)
+    cursor.execute("SELECT nombre, rut FROM usuarios")
+    usuarios = cursor.fetchall()
+
+    opciones = [f"{nombre} / Rut: {rut}" for nombre, rut in usuarios]
+
+    selUsuariosRegistrado = ttk.Combobox(ventana_usuarios, values=opciones, state="readonly", width=200)
     selUsuariosRegistrado.pack(padx=20, pady=10)
 
     btn_eliminar = ttk.Button(ventana_usuarios, text="Eliminar usuario")
@@ -157,19 +163,40 @@ def configurarCostos():
     ventana_costos.title("Configurar costos roles")
     ventana_costos.geometry("400x300")
 
+    cursor.execute("INSERT IGNORE INTO costos (id, estudiante, docente) values (1, 0, 0)")
+
+    consulta = "SELECT estudiante, docente FROM costos"
+    cursor.execute(consulta)
+    costo = cursor.fetchone()
+
+    costo_estudiante, costo_docente = costo
+
     labelCostos = tk.Label(ventana_costos, text="Costos asociados a dia de atraso para los roles del solicitante")
     labelCostos.pack(padx=20, pady=10)
     labelEstudiante = tk.Label(ventana_costos, text="Estudiante: ")
     labelEstudiante.pack(padx=20, pady=10)
     entryCostoEstudiante = ttk.Entry(ventana_costos)
+    entryCostoEstudiante.insert(0, costo_estudiante)
     entryCostoEstudiante.pack(padx=20, pady=10)
     labelDocente = tk.Label(ventana_costos, text="Docente: ")
     labelDocente.pack(padx=20, pady=10)
     entryCostoDocente = ttk.Entry(ventana_costos)
+    entryCostoDocente.insert(0, costo_docente)
     entryCostoDocente.pack(padx=20, pady=10)
 
-    btn_fijar_costos = ttk.Button(ventana_costos, text="Registrar valores")
+    def fijarCostos():
+        costoEstudiante = entryCostoEstudiante.get()
+        costoDocente = entryCostoDocente.get()
+
+        cursor.execute(f"UPDATE costos SET estudiante = {costoEstudiante}, docente = {costoDocente} WHERE id = 1")
+
+        estado.configure(text="Valores fijados con éxito.")
+
+    btn_fijar_costos = ttk.Button(ventana_costos, text="Registrar valores", command=fijarCostos)
     btn_fijar_costos.pack(padx=20, pady=10)
+
+    estado = tk.Label(ventana_costos, text="")
+    estado.pack(padx=20, pady=10)
 
 btn_config_costos = ttk.Button(menu, text="Configurar costos", command=configurarCostos, state="disabled")
 btn_config_costos.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
@@ -181,7 +208,11 @@ def revisarDeudas():
     
     labelCliente = tk.Label(ventana_deudas, text="Seleccione al cliente:")
     labelCliente.pack(padx=20, pady=10)
-    selCliente = ttk.Combobox(ventana_deudas, values="")
+
+    cursor.execute("SELECT nombre FROM clientes")
+    nombres = [nombre[0] for nombre in cursor.fetchall()]
+
+    selCliente = ttk.Combobox(ventana_deudas, values=nombres)
     selCliente.pack(padx=20, pady=10)
     labelDeuda = tk.Label(ventana_deudas, text="Deuda registrada:")
     labelDeuda.pack(padx=20, pady=10)
@@ -200,6 +231,10 @@ def registrarCliente():
     ventana_registro_cliente.title("Registro de cliente")
     ventana_registro_cliente.geometry("400x460")
 
+    rutCliente = tk.Label(ventana_registro_cliente, text="RUT")
+    rutCliente.pack(padx=10, pady=10)
+    entryRutCliente = ttk.Entry(ventana_registro_cliente)
+    entryRutCliente.pack(padx=10, pady=10)
     nomCliente = tk.Label(ventana_registro_cliente, text="Nombre")
     nomCliente.pack(padx=10, pady=10)
     entryNomCliente = ttk.Entry(ventana_registro_cliente)
@@ -208,17 +243,42 @@ def registrarCliente():
     apeCliente.pack(padx=10, pady=10)
     entryApeCliente = ttk.Entry(ventana_registro_cliente)
     entryApeCliente.pack(padx=10, pady=10)
-    rutCliente = tk.Label(ventana_registro_cliente, text="RUT")
-    rutCliente.pack(padx=10, pady=10)
-    entryRutCliente = ttk.Entry(ventana_registro_cliente)
-    entryRutCliente.pack(padx=10, pady=10)
     roles = ["Estudiante", "Docente"]
     rolLabel = tk.Label(ventana_registro_cliente, text="Seleccione el rol")
     rolLabel.pack(padx=10, pady=10)
-    rol = ttk.Combobox(ventana_registro_cliente, values=roles)
+    rol = ttk.Combobox(ventana_registro_cliente, values=roles, state="readonly")
     rol.pack(padx=10, pady=10)
-    btn_registrar_cliente = ttk.Button(ventana_registro_cliente, text="Registrar")
+
+    def obtenerDatos():
+        rut = entryRutCliente.get()
+        nombre = entryNomCliente.get()
+        apellido = entryApeCliente.get()
+        rolC = rol.get()
+
+        def comprobarDatos():
+            if rut == "" or nombre == "" or apellido == ""  or rolC == "":
+                estado.configure(text="Favor de verificar informacion.")
+            else:   
+                insertar_cliente = "INSERT INTO clientes (rutCliente, nombre, apellido, rol) VALUES (%s, %s, %s, %s)"
+                valores_cliente = (rut, nombre, apellido, rolC)
+
+                try:
+                    cursor.execute(insertar_cliente, valores_cliente)
+                    estado.configure(text="Cliente registrado con éxito!.")
+
+                except mysql.connector.IntegrityError as e:
+                    if e.errno == 1062:
+                        estado.configure(text=f"Error: El RUT: {rut} ya está registrado en la base de datos.")
+                    else:
+                        estado.configure(text=f"Error: {e}")
+
+        comprobarDatos()        
+
+    btn_registrar_cliente = ttk.Button(ventana_registro_cliente, text="Registrar", command=obtenerDatos)
     btn_registrar_cliente.pack(padx=20, pady=20)
+
+    estado = tk.Label(ventana_registro_cliente, text="")
+    estado.pack(padx=20, pady=10)
 
 btn_registrar_cliente = ttk.Button(menu, text="Registrar cliente", command=registrarCliente, state="disabled")
 btn_registrar_cliente.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
@@ -226,15 +286,21 @@ btn_registrar_cliente.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
 def registrarPrestamo():
     ventana_registrar_prestamo = tk.Toplevel(ventana)
     ventana_registrar_prestamo.title("Registrar préstamo")
-    ventana_registrar_prestamo.geometry("400x500")    
+    ventana_registrar_prestamo.geometry("400x520")    
+
+    cursor.execute("SELECT nombre FROM clientes")
+    nombres_clientes = [nombre[0] for nombre in cursor.fetchall()]
+
+    cursor.execute("SELECT nombreLibro FROM libros")
+    nombres_libros = [nombre[0] for nombre in cursor.fetchall()]
 
     labelCliente = ttk.Label(ventana_registrar_prestamo, text="Seleccione al cliente")
     labelCliente.pack(padx=20, pady=10)
-    listaClientes = ttk.Combobox(ventana_registrar_prestamo, values=clientes)
+    listaClientes = ttk.Combobox(ventana_registrar_prestamo, values=nombres_clientes)
     listaClientes.pack(padx=10, pady=10)
     labelLibros = ttk.Label(ventana_registrar_prestamo, text="Seleccione el libro")
     labelLibros.pack(padx=20, pady=10)
-    listaLibros = ttk.Combobox(ventana_registrar_prestamo, values=libros)
+    listaLibros = ttk.Combobox(ventana_registrar_prestamo, values=nombres_libros)
     listaLibros.pack(padx=20, pady=10)
     labelPrestamo = ttk.Label(ventana_registrar_prestamo, text="Fecha de solicitud")
     labelPrestamo.pack(padx=20, pady=10)
@@ -249,8 +315,28 @@ def registrarPrestamo():
     labelMonto = tk.Label(ventana_registrar_prestamo, text="0")
     labelMonto.pack(padx=20, pady=10)
 
-    btn_registrar = ttk.Button(ventana_registrar_prestamo, text="Registrar préstamo")
+    def registrarPrestamoLibro():
+        cliente = listaClientes.get()
+        libro = listaLibros.get()
+        fecha_solicitud = fechaPrestamo.get_date()
+        fecha_devolucion = fechaDevolucion.get_date()
+
+        if cliente == "" or libro == "":
+            estado.configure(text="Verifique la informacion entregada.")
+
+        else:
+            consulta = "INSERT INTO prestamos (cliente, libro, fecha_solicitud, fecha_devolucion) values (%s, %s, %s, %s)"
+            datos = (cliente, libro, fecha_solicitud, fecha_devolucion)
+
+            cursor.execute(consulta, datos)
+
+            estado.configure(text="Préstamo registrado.")
+
+    btn_registrar = ttk.Button(ventana_registrar_prestamo, text="Registrar préstamo", command=registrarPrestamoLibro)
     btn_registrar.pack(padx=20, pady=10)
+
+    estado = tk.Label(ventana_registrar_prestamo, text="")
+    estado.pack(padx=20, pady=10)
 
 btn_registrar_prestamo = ttk.Button(menu, text="Registrar préstamo", command=registrarPrestamo, state="disabled")
 btn_registrar_prestamo.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
@@ -262,7 +348,11 @@ def eliminarPrestamo():
 
     labelCliente = tk.Label(ventana_eliminar_prestamo, text="Seleccione al cliente")
     labelCliente.pack(padx=20, pady=10)
-    selCliente = ttk.Combobox(ventana_eliminar_prestamo, values=clientes)
+
+    cursor.execute("SELECT nombre FROM clientes")
+    nombres = [nombre[0] for nombre in cursor.fetchall()]
+
+    selCliente = ttk.Combobox(ventana_eliminar_prestamo, values=nombres)
     selCliente.pack(padx=20, pady=10)
     labelLibro = tk.Label(ventana_eliminar_prestamo, text="Seleccion libro a devolver")
     labelLibro.pack(padx=20, pady=10)
@@ -282,6 +372,73 @@ def eliminarPrestamo():
     
 btn_eliminar_prestamo = ttk.Button(menu, text="Devolver préstamo", command=eliminarPrestamo, state="disabled")
 btn_eliminar_prestamo.grid(row=1, column=2, padx=10, pady=10, sticky="ew")
+
+def ingresarLibro():
+    ventana_libros = tk.Toplevel(ventana)
+    ventana_libros.title("Ingresar ejemplar")
+    ventana_libros.geometry("400x360")
+
+    labelNombre = tk.Label(ventana_libros, text="Ingrese el titulo del libro")
+    labelNombre.pack(padx=20, pady=10)
+    entryNombreLibro = ttk.Entry(ventana_libros)
+    entryNombreLibro.pack(padx=20, pady=10)
+    labelAutor = tk.Label(ventana_libros, text="Ingrese el autor del libro")
+    labelAutor.pack(padx=20, pady=10)
+    entryAutor = ttk.Entry(ventana_libros)
+    entryAutor.pack(padx=20, pady=10)
+    labelStock = tk.Label(ventana_libros, text="Digite el stock disponible")
+    labelStock.pack(padx=20, pady=10)
+    entryStock = ttk.Entry(ventana_libros)
+    entryStock.pack(padx=20, pady=10)
+
+    def registrarLibro():
+        nombre = entryNombreLibro.get()
+        autor = entryAutor.get()
+        stock = entryStock.get()
+
+        if nombre == "" or autor == "" or stock == "":
+            estado.configure(text="Revise la informacion registrada.")
+
+        else:
+            consulta = "INSERT INTO libros (nombreLibro, autor, stock) VALUES (%s, %s, %s)"
+            datos = (nombre, autor, stock)
+
+            cursor.execute(consulta, datos)
+
+            estado.configure(text="Libro registrado con éxito.")
+
+    btn_registrar_libro = ttk.Button(ventana_libros, text="Registrar libro", command=registrarLibro)
+    btn_registrar_libro.pack(padx=20, pady=10)
+
+    estado = tk.Label(ventana_libros, text="")
+    estado.pack(padx=20, pady=10)
+
+btn_ingresar_libro = ttk.Button(menu, text="Ingresar libro", command=ingresarLibro)
+btn_ingresar_libro.grid(row=0, column=3, padx=10, pady=10, sticky="ew")
+
+def revisarLibros():
+    ventana_revisar_libros = tk.Toplevel(ventana)
+    ventana_revisar_libros.title("Ejemplares disponibles")
+    ventana_revisar_libros.geometry("400x600")
+
+    cursor.execute("SELECT nombreLibro, autor, stock FROM libros")
+    nombres = [nombre[0] for nombre in cursor.fetchall()]
+
+    labelNombre = tk.Label(ventana_revisar_libros, text="Seleccione el libro")
+    labelNombre.pack(padx=20, pady=10)
+    entryNombreLibro = ttk.Combobox(ventana_revisar_libros, values=nombres, state="readonly")
+    entryNombreLibro.pack(padx=20, pady=10)
+    labelAutor = tk.Label(ventana_revisar_libros, text="Autor:")
+    labelAutor.pack(padx=20, pady=10)
+    labelAutorDos = tk.Label(ventana_revisar_libros, text="")
+    labelAutorDos.pack(padx=20, pady=10)
+    labelStock = tk.Label(ventana_revisar_libros, text="Stock disponible:")
+    labelStock.pack(padx=20, pady=10)
+    labelStockDos = tk.Label(ventana_revisar_libros, text="")
+    labelStockDos.pack(padx=20, pady=10)
+
+btn_revisar_libros = ttk.Button(menu, text="Revisar libros", command=revisarLibros)
+btn_revisar_libros.grid(row=1, column=3, padx=10, pady=10, sticky="ew")
 
 infoLegal = tk.Frame(ventana, borderwidth=2, relief="ridge")
 infoLegal.pack(pady=20)
