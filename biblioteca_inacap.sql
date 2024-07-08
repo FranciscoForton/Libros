@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1:3306
--- Tiempo de generación: 08-07-2024 a las 18:48:16
+-- Tiempo de generación: 08-07-2024 a las 23:11:11
 -- Versión del servidor: 8.3.0
 -- Versión de PHP: 8.2.18
 
@@ -36,13 +36,6 @@ CREATE TABLE IF NOT EXISTS `clientes` (
   PRIMARY KEY (`rutCliente`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
--- Volcado de datos para la tabla `clientes`
---
-
-INSERT INTO `clientes` (`rutCliente`, `nombre`, `apellido`, `rol`) VALUES
-('888888-1', 'Esteban', 'Mendoza', 'Estudiante');
-
 -- --------------------------------------------------------
 
 --
@@ -57,12 +50,24 @@ CREATE TABLE IF NOT EXISTS `costos` (
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- --------------------------------------------------------
+
 --
--- Volcado de datos para la tabla `costos`
+-- Estructura de tabla para la tabla `deudores`
 --
 
-INSERT INTO `costos` (`id`, `estudiante`, `docente`) VALUES
-(1, 0, 0);
+DROP TABLE IF EXISTS `deudores`;
+CREATE TABLE IF NOT EXISTS `deudores` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `nombreCliente` varchar(40) DEFAULT NULL,
+  `solicitud` date DEFAULT NULL,
+  `devolucion` date DEFAULT NULL,
+  `libro` varchar(40) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `nombreCliente` (`nombreCliente`),
+  KEY `solicitud` (`solicitud`),
+  KEY `devolucion` (`devolucion`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -77,14 +82,7 @@ CREATE TABLE IF NOT EXISTS `libros` (
   `autor` varchar(80) DEFAULT NULL,
   `stock` int DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Volcado de datos para la tabla `libros`
---
-
-INSERT INTO `libros` (`id`, `nombreLibro`, `autor`, `stock`) VALUES
-(1, 'Programacion', 'Francisco', 10);
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -94,22 +92,13 @@ INSERT INTO `libros` (`id`, `nombreLibro`, `autor`, `stock`) VALUES
 
 DROP TABLE IF EXISTS `prestamos`;
 CREATE TABLE IF NOT EXISTS `prestamos` (
-  `id` int NOT NULL AUTO_INCREMENT,
+  `id_prestamo` int NOT NULL AUTO_INCREMENT,
   `cliente` varchar(40) DEFAULT NULL,
-  `libro` varchar(60) DEFAULT NULL,
+  `libro` varchar(40) DEFAULT NULL,
   `fecha_solicitud` date DEFAULT NULL,
   `fecha_devolucion` date DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=MyISAM AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Volcado de datos para la tabla `prestamos`
---
-
-INSERT INTO `prestamos` (`id`, `cliente`, `libro`, `fecha_solicitud`, `fecha_devolucion`) VALUES
-(1, 'Esteban', 'Programacion', '2024-07-08', '2024-07-10'),
-(2, '', '', '2024-07-08', '2024-07-08'),
-(3, 'Esteban', 'Programacion', '2024-07-08', '2024-07-08');
+  PRIMARY KEY (`id_prestamo`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -127,13 +116,6 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
   `clave` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`rut`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Volcado de datos para la tabla `usuarios`
---
-
-INSERT INTO `usuarios` (`rut`, `nombre`, `apellido`, `telefono`, `correo`, `clave`) VALUES
-(9999999, 'Francisco', 'Mendoza', 8888888, 'francisco@gmail.com', '123456');
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

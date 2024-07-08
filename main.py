@@ -3,7 +3,9 @@ from tkinter import ttk
 from tkcalendar import DateEntry
 from tkinter import messagebox
 import mysql.connector
-from mysql.connector import Error
+from datetime import datetime
+
+fechaHoy = datetime.now()
 
 conexion = mysql.connector.connect(
     host="localhost",
@@ -21,10 +23,10 @@ ventana.geometry("800x600")
 nombreApp = tk.Label(ventana, text="Bienvenido al sistema para préstamos de libros")
 nombreApp.pack(pady=10)
 
-dueño = ""
-claveDueño = ""
-libros = []
+dueño = "INACAP"
+claveDueño = "123456"
 usuarioActivo = ""
+varControl = 0
     
 def iniciarSesion():
     ventana_login = tk.Toplevel(ventana)
@@ -115,6 +117,7 @@ def registrarUsuario():
                 try:
                     cursor.execute(insertar_usuario, valores_usuario)
                     estado.configure(text="Usuario registrado con éxito!.")
+                    conexion.commit()
 
                 except mysql.connector.IntegrityError as e:
                     if e.errno == 1062:
@@ -152,8 +155,19 @@ def comprobarUsuarios():
     selUsuariosRegistrado = ttk.Combobox(ventana_usuarios, values=opciones, state="readonly", width=200)
     selUsuariosRegistrado.pack(padx=20, pady=10)
 
-    btn_eliminar = ttk.Button(ventana_usuarios, text="Eliminar usuario")
+    def eliminarUsuario():
+        usuario = selUsuariosRegistrado.get()
+        if usuario:
+            rut = usuario.split(" / Rut: ")[1]
+            cursor.execute("DELETE FROM usuarios WHERE rut = %s", (rut,))
+            conexion.commit()
+            estado.configure(text="Usuario eliminado con éxito.")
+        
+    btn_eliminar = ttk.Button(ventana_usuarios, text="Eliminar usuario", command=eliminarUsuario)
     btn_eliminar.pack(padx=20, pady=10)
+
+    estado = tk.Label(ventana_usuarios, text="")
+    estado.pack(padx=20, pady=10)
 
 btn_comprobar_usuarios = ttk.Button(menu, text="Comprobar usuarios", command=comprobarUsuarios)
 btn_comprobar_usuarios.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
@@ -204,7 +218,7 @@ btn_config_costos.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
 def revisarDeudas():
     ventana_deudas = tk.Toplevel(ventana)
     ventana_deudas.title("Deudas clientes")
-    ventana_deudas.geometry("200x300")
+    ventana_deudas.geometry("200x400")
     
     labelCliente = tk.Label(ventana_deudas, text="Seleccione al cliente:")
     labelCliente.pack(padx=20, pady=10)
@@ -212,16 +226,59 @@ def revisarDeudas():
     cursor.execute("SELECT nombre FROM clientes")
     nombres = [nombre[0] for nombre in cursor.fetchall()]
 
-    selCliente = ttk.Combobox(ventana_deudas, values=nombres)
+    selCliente = ttk.Combobox(ventana_deudas, values=nombres, state="readonly")
     selCliente.pack(padx=20, pady=10)
-    labelDeuda = tk.Label(ventana_deudas, text="Deuda registrada:")
+
+    def obtenerFechasDevolucion():
+        cliente = selCliente.get()
+
+        if varControl == 1:
+            btn_pagar.config(state="normal")
+        
+        consulta = "SELECT devolucion FROM deudores WHERE nombreCliente = %s"
+        cursor.execute(consulta, (cliente,))
+        fechas_devolucion = cursor.fetchall()
+        
+        if fechas_devolucion:
+            fechas = [datetime.strptime(str(fecha[0]), '%Y-%m-%d') for fecha in fechas_devolucion]
+            fechas_str = "\n".join([fecha.strftime('%Y-%m-%d') for fecha in fechas])
+            segundoLabelDeuda.config(text=fechas_str)
+            
+        else:
+            segundoLabelDeuda.config(text="No hay deudas registradas")
+
+        for fecha in fechas:
+            if fecha < fechaHoy:
+                diferencia_dias = (fecha - fechaHoy).days
+                
+        consultaDos = "SELECT rol FROM clientes WHERE nombre = %s"
+        cursor.execute(consultaDos, (cliente,))
+        rol = cursor.fetchone()
+        rol = rol[0]
+        
+        if rol == "Estudiante":
+            cursor.execute("SELECT estudiante FROM costos")
+            costo = cursor.fetchone()
+            costo = costo[0]
+            costo = int(costo)
+            costoFinal = costo * diferencia_dias
+
+            cuartoLabelDeuda.configure(text=f"$ {costoFinal}")
+
+    btn_ver= ttk.Button(ventana_deudas, text="Revisar", command=obtenerFechasDevolucion)    
+    btn_ver.pack(padx=20, pady=10)
+
+    labelDeuda = tk.Label(ventana_deudas, text="Fecha de devolucion:")
     labelDeuda.pack(padx=20, pady=10)
-    segundoLabelDeuda = tk.Label(ventana_deudas, text="0")
+    segundoLabelDeuda = tk.Label(ventana_deudas, text="")
     segundoLabelDeuda.pack(padx=20, pady=10)
-    labelEstado = tk.Label(ventana_deudas, text="Estado de la deuda:")
-    labelEstado.pack(padx=20, pady=10)
-    segundoLabelEstado = tk.Label(ventana_deudas, text="0")
-    segundoLabelEstado.pack(padx=20, pady=10)
+    tercerLabelDeuda = tk.Label(ventana_deudas, text="Monto a pagar:")
+    tercerLabelDeuda.pack(padx=20, pady=10)
+    cuartoLabelDeuda = tk.Label(ventana_deudas, text="0")
+    cuartoLabelDeuda.pack(padx=20, pady=10)
+
+    btn_pagar = ttk.Button(ventana_deudas, text="Pagar")
+    btn_pagar.pack(padx=20, pady=10)
 
 btn_revisar_deudas = ttk.Button(menu, text="Revisar deudas", command=revisarDeudas)
 btn_revisar_deudas.grid(row=0, column=2, padx=10, pady=10, sticky="ew")
@@ -264,6 +321,7 @@ def registrarCliente():
 
                 try:
                     cursor.execute(insertar_cliente, valores_cliente)
+                    conexion.commit()
                     estado.configure(text="Cliente registrado con éxito!.")
 
                 except mysql.connector.IntegrityError as e:
@@ -296,24 +354,20 @@ def registrarPrestamo():
 
     labelCliente = ttk.Label(ventana_registrar_prestamo, text="Seleccione al cliente")
     labelCliente.pack(padx=20, pady=10)
-    listaClientes = ttk.Combobox(ventana_registrar_prestamo, values=nombres_clientes)
+    listaClientes = ttk.Combobox(ventana_registrar_prestamo, values=nombres_clientes, state="readonly")
     listaClientes.pack(padx=10, pady=10)
     labelLibros = ttk.Label(ventana_registrar_prestamo, text="Seleccione el libro")
     labelLibros.pack(padx=20, pady=10)
-    listaLibros = ttk.Combobox(ventana_registrar_prestamo, values=nombres_libros)
+    listaLibros = ttk.Combobox(ventana_registrar_prestamo, values=nombres_libros, state="readonly")
     listaLibros.pack(padx=20, pady=10)
     labelPrestamo = ttk.Label(ventana_registrar_prestamo, text="Fecha de solicitud")
     labelPrestamo.pack(padx=20, pady=10)
-    fechaPrestamo = DateEntry(ventana_registrar_prestamo, width=12, background="darkblue", foreground="white", borderwidth=2)
+    fechaPrestamo = DateEntry(ventana_registrar_prestamo, width=12, background="darkblue", foreground="white", borderwidth=2, state="readonly")
     fechaPrestamo.pack(padx=20, pady=10)
     labelDevolucion = ttk.Label(ventana_registrar_prestamo, text="Fecha de devolucion")
     labelDevolucion.pack(padx=20, pady=10)
-    fechaDevolucion = DateEntry(ventana_registrar_prestamo, width=12, background="darkblue", foreground="white", borderwidth=2)
+    fechaDevolucion = DateEntry(ventana_registrar_prestamo, width=12, background="darkblue", foreground="white", borderwidth=2, state="readonly")
     fechaDevolucion.pack(padx=20, pady=10)
-    labelTarifa = tk.Label(ventana_registrar_prestamo, text="Monto a cancelar por dia de atraso:")
-    labelTarifa.pack(padx=20, pady=10)
-    labelMonto = tk.Label(ventana_registrar_prestamo, text="0")
-    labelMonto.pack(padx=20, pady=10)
 
     def registrarPrestamoLibro():
         cliente = listaClientes.get()
@@ -330,6 +384,18 @@ def registrarPrestamo():
 
             cursor.execute(consulta, datos)
 
+            consultaDos = "UPDATE libros SET stock = stock - %s WHERE nombreLibro = %s"
+            datosDos = (1, libro)
+
+            cursor.execute(consultaDos, datosDos)
+
+            consultaTres = "INSERT INTO deudores (nombreCliente, solicitud, devolucion, libro) values (%s, %s, %s, %s)"
+            datosTres = (cliente, fecha_solicitud, fecha_devolucion, libro)
+
+            cursor.execute(consultaTres, datosTres)
+
+            conexion.commit()
+
             estado.configure(text="Préstamo registrado.")
 
     btn_registrar = ttk.Button(ventana_registrar_prestamo, text="Registrar préstamo", command=registrarPrestamoLibro)
@@ -344,31 +410,71 @@ btn_registrar_prestamo.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
 def eliminarPrestamo():
     ventana_eliminar_prestamo = tk.Toplevel(ventana)
     ventana_eliminar_prestamo.title("Devolver préstamo")
-    ventana_eliminar_prestamo.geometry("400x460")
+    ventana_eliminar_prestamo.geometry("400x400")
 
-    labelCliente = tk.Label(ventana_eliminar_prestamo, text="Seleccione al cliente")
-    labelCliente.pack(padx=20, pady=10)
+    def obtenerClientes():
+        cursor.execute("SELECT DISTINCT cliente FROM prestamos")
+        return cursor.fetchall()
 
-    cursor.execute("SELECT nombre FROM clientes")
-    nombres = [nombre[0] for nombre in cursor.fetchall()]
+    def obtenerLibrosPorCliente(cliente):
+        cursor.execute("SELECT libro FROM prestamos WHERE cliente = %s", (cliente,))
+        return cursor.fetchall()
 
-    selCliente = ttk.Combobox(ventana_eliminar_prestamo, values=nombres)
-    selCliente.pack(padx=20, pady=10)
-    labelLibro = tk.Label(ventana_eliminar_prestamo, text="Seleccion libro a devolver")
-    labelLibro.pack(padx=20, pady=10)
-    selLibro = ttk.Combobox(ventana_eliminar_prestamo, values="")
-    selLibro.pack(padx=20, pady=10)
-    labelFechaDevolucion = tk.Label(ventana_eliminar_prestamo, text="Fecha registrada para devolucion")
-    labelFechaDevolucion.pack(padx=20, pady=10)
-    fechaDevolucion = tk.Label(ventana_eliminar_prestamo, text="0")
-    fechaDevolucion.pack(padx=20, pady=10)
-    labelDeuda = tk.Label(ventana_eliminar_prestamo, text="Monto a cancelar")
-    labelDeuda.pack(padx=20, pady=10)
-    montoDeuda = tk.Label(ventana_eliminar_prestamo, text="0")
-    montoDeuda.pack(padx=20, pady=10)
+    def cargarLibros(event):
+        cliente_seleccionado = selClientes.get()
+        if cliente_seleccionado:
+            libros = obtenerLibrosPorCliente(cliente_seleccionado)
+            listbox_libros.delete(0, tk.END)
+            for libro in libros:
+                listbox_libros.insert(tk.END, libro[0]) 
+        else:
+            listbox_libros.delete(0, tk.END)
 
-    btn_eliminar = ttk.Button(ventana_eliminar_prestamo, text="Eliminar préstamo")
+    labelClientes = tk.Label(ventana_eliminar_prestamo, text="Seleccionar cliente:")
+    labelClientes.pack(padx=20, pady=10)
+
+    clientes = obtenerClientes()
+    opciones_clientes = [cliente[0] for cliente in clientes]
+
+    selClientes = ttk.Combobox(ventana_eliminar_prestamo, values=opciones_clientes, state="readonly")
+    selClientes.pack(padx=20, pady=10)
+    selClientes.bind("<<ComboboxSelected>>", cargarLibros)
+
+    labelLibros = tk.Label(ventana_eliminar_prestamo, text="Libros en posesión:")
+    labelLibros.pack(padx=20, pady=10)
+
+    listbox_libros = tk.Listbox(ventana_eliminar_prestamo, width=80, height=8)
+    listbox_libros.pack(padx=20, pady=10)        
+
+    def borrarPrestamo():
+        cliente_seleccionado = selClientes.get()
+        seleccion = listbox_libros.curselection()
+        libro_seleccionado = listbox_libros.get(seleccion[0]) 
+
+        consulta = "DELETE FROM prestamos WHERE cliente = %s AND libro = %s"  
+        datos = (cliente_seleccionado, libro_seleccionado) 
+
+        cursor.execute(consulta, datos)
+
+        consultaDos = "UPDATE libros SET stock = stock + %s WHERE nombreLibro = %s"
+        datosDos = (1, libro_seleccionado)
+
+        cursor.execute(consultaDos, datosDos)
+
+        consultaTres = "DELETE FROM deudores WHERE nombreCliente = %s and libro = %s"
+        datosTres = (cliente_seleccionado, libro_seleccionado)
+
+        cursor.execute(consultaTres, datosTres)
+
+        conexion.commit()
+
+        estado.configure(text="Préstamo eliminado con éxito.")
+
+    btn_eliminar = ttk.Button(ventana_eliminar_prestamo, text="Eliminar préstamo", command=borrarPrestamo)
     btn_eliminar.pack(padx=20, pady=10)
+
+    estado = tk.Label(ventana_eliminar_prestamo, text="")
+    estado.pack(padx=20, pady=10)
     
 btn_eliminar_prestamo = ttk.Button(menu, text="Devolver préstamo", command=eliminarPrestamo, state="disabled")
 btn_eliminar_prestamo.grid(row=1, column=2, padx=10, pady=10, sticky="ew")
@@ -405,6 +511,8 @@ def ingresarLibro():
 
             cursor.execute(consulta, datos)
 
+            conexion.commit()
+
             estado.configure(text="Libro registrado con éxito.")
 
     btn_registrar_libro = ttk.Button(ventana_libros, text="Registrar libro", command=registrarLibro)
@@ -419,23 +527,20 @@ btn_ingresar_libro.grid(row=0, column=3, padx=10, pady=10, sticky="ew")
 def revisarLibros():
     ventana_revisar_libros = tk.Toplevel(ventana)
     ventana_revisar_libros.title("Ejemplares disponibles")
-    ventana_revisar_libros.geometry("400x600")
 
     cursor.execute("SELECT nombreLibro, autor, stock FROM libros")
-    nombres = [nombre[0] for nombre in cursor.fetchall()]
 
-    labelNombre = tk.Label(ventana_revisar_libros, text="Seleccione el libro")
-    labelNombre.pack(padx=20, pady=10)
-    entryNombreLibro = ttk.Combobox(ventana_revisar_libros, values=nombres, state="readonly")
-    entryNombreLibro.pack(padx=20, pady=10)
-    labelAutor = tk.Label(ventana_revisar_libros, text="Autor:")
-    labelAutor.pack(padx=20, pady=10)
-    labelAutorDos = tk.Label(ventana_revisar_libros, text="")
-    labelAutorDos.pack(padx=20, pady=10)
-    labelStock = tk.Label(ventana_revisar_libros, text="Stock disponible:")
-    labelStock.pack(padx=20, pady=10)
-    labelStockDos = tk.Label(ventana_revisar_libros, text="")
-    labelStockDos.pack(padx=20, pady=10)
+    datos = cursor.fetchall()
+
+    tabla = ttk.Treeview(ventana_revisar_libros, columns=("Nombre", "Autor", "Stock"), show="headings")
+    tabla.pack(padx=20, pady=10)    
+
+    tabla.heading("Nombre", text="Nombre")
+    tabla.heading("Autor", text="Autor")
+    tabla.heading("Stock", text="Stock")
+
+    for dato in datos:
+        tabla.insert("", "end", values=dato)
 
 btn_revisar_libros = ttk.Button(menu, text="Revisar libros", command=revisarLibros)
 btn_revisar_libros.grid(row=1, column=3, padx=10, pady=10, sticky="ew")
