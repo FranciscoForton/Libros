@@ -26,39 +26,42 @@ nombreApp.pack(pady=10)
 dueño = "INACAP"
 claveDueño = "123456"
 usuarioActivo = ""
-varControl = 0
+varInfoLegal = tk.BooleanVar()
     
 def iniciarSesion():
-    ventana_login = tk.Toplevel(ventana)
-    ventana_login.title("Iniciar sesión")
+    if varInfoLegal.get():
+        ventana_login = tk.Toplevel(ventana)
+        ventana_login.title("Iniciar sesión")
 
-    nomUsuario = tk.Label(ventana_login, text="Usuario:")
-    nomUsuario.pack()
-    entryUsuario = tk.Entry(ventana_login)
-    entryUsuario.pack(padx=20, pady=20)
-    contraUsuario = tk.Label(ventana_login, text="Contraseña:")
-    contraUsuario.pack()
-    entryContraseña = tk.Entry(ventana_login, show="*")
-    entryContraseña.pack(padx=20, pady=20)
-    labelEstado = tk.Label(ventana_login, text="")
-    labelEstado.pack(padx=20, pady=10)
+        nomUsuario = tk.Label(ventana_login, text="Usuario:")
+        nomUsuario.pack()
+        entryUsuario = tk.Entry(ventana_login)
+        entryUsuario.pack(padx=20, pady=20)
+        contraUsuario = tk.Label(ventana_login, text="Contraseña:")
+        contraUsuario.pack()
+        entryContraseña = tk.Entry(ventana_login, show="*")
+        entryContraseña.pack(padx=20, pady=20)
+        labelEstado = tk.Label(ventana_login, text="")
+        labelEstado.pack(padx=20, pady=10)
 
-    def validarInicio():
-        user = entryUsuario.get()
-        password = entryContraseña.get()
+        def validarInicio():
+            user = entryUsuario.get()
+            password = entryContraseña.get()
 
-        if user == dueño and password == claveDueño:
-            messagebox.showinfo("Inicio de sesión exitoso", "¡Bienvenido!")
-            ventana_login.destroy()
+            if user == dueño and password == claveDueño:
+                messagebox.showinfo("Inicio de sesión exitoso", "¡Bienvenido!")
+                ventana_login.destroy()
 
-            btn_registrar_usuario.config(state="normal")
-            btn_config_costos.config(state="normal")
-            btn_registrar_cliente.config(state="normal")
-            btn_registrar_prestamo.config(state="normal")
-            btn_eliminar_prestamo.config(state="normal")
+                btn_registrar_usuario.config(state="normal")
+                btn_config_costos.config(state="normal")
+                btn_registrar_cliente.config(state="normal")
+                btn_registrar_prestamo.config(state="normal")
+                btn_eliminar_prestamo.config(state="normal")
 
-        else:
-            labelEstado.configure(text="Credenciales erroneas")    
+            else:
+                labelEstado.configure(text="Credenciales erroneas")    
+    else:
+        messagebox.showinfo("Términos y condiciones", "Debe aceptar que toma conocimiento de los términos y condiciones propuestos.")
 
     boton_ingresar = tk.Button(ventana_login, text="Ingresar", command=validarInicio)
     boton_ingresar.pack(pady=20)
@@ -185,7 +188,7 @@ def configurarCostos():
 
     costo_estudiante, costo_docente = costo
 
-    labelCostos = tk.Label(ventana_costos, text="Costos asociados a dia de atraso para los roles del solicitante")
+    labelCostos = tk.Label(ventana_costos, text="Costos asociados a día de atraso para los roles del solicitante")
     labelCostos.pack(padx=20, pady=10)
     labelEstudiante = tk.Label(ventana_costos, text="Estudiante: ")
     labelEstudiante.pack(padx=20, pady=10)
@@ -231,10 +234,8 @@ def revisarDeudas():
 
     def obtenerFechasDevolucion():
         cliente = selCliente.get()
+        diferencia_dias = 0
 
-        if varControl == 1:
-            btn_pagar.config(state="normal")
-        
         consulta = "SELECT devolucion FROM deudores WHERE nombreCliente = %s"
         cursor.execute(consulta, (cliente,))
         fechas_devolucion = cursor.fetchall()
@@ -249,7 +250,7 @@ def revisarDeudas():
 
         for fecha in fechas:
             if fecha < fechaHoy:
-                diferencia_dias = (fecha - fechaHoy).days
+                diferencia_dias = (fechaHoy - fecha).days
                 
         consultaDos = "SELECT rol FROM clientes WHERE nombre = %s"
         cursor.execute(consultaDos, (cliente,))
@@ -264,6 +265,15 @@ def revisarDeudas():
             costoFinal = costo * diferencia_dias
 
             cuartoLabelDeuda.configure(text=f"$ {costoFinal}")
+
+        else:
+            cursor.execute("SELECT docente FROM costos")   
+            costo = cursor.fetchone()
+            costo = costo[0] 
+            costo = int(costo)
+            costoFinalDos = costo * diferencia_dias
+
+            cuartoLabelDeuda.configure(text=f"$ {costoFinalDos}")
 
     btn_ver= ttk.Button(ventana_deudas, text="Revisar", command=obtenerFechasDevolucion)    
     btn_ver.pack(padx=20, pady=10)
@@ -375,8 +385,17 @@ def registrarPrestamo():
         fecha_solicitud = fechaPrestamo.get_date()
         fecha_devolucion = fechaDevolucion.get_date()
 
+        consultaL = "SELECT stock FROM libros WHERE nombreLibro = %s"
+        cursor.execute(consultaL, (libro,))
+        stockL = cursor.fetchone()
+        stockL = stockL[0]
+        stockL = int(stockL)
+
         if cliente == "" or libro == "":
             estado.configure(text="Verifique la informacion entregada.")
+
+        elif stockL == 0:
+            estado.configure(text="Lo sentimos, no queda stock disponible para el préstamo.")    
 
         else:
             consulta = "INSERT INTO prestamos (cliente, libro, fecha_solicitud, fecha_devolucion) values (%s, %s, %s, %s)"
@@ -500,10 +519,13 @@ def ingresarLibro():
     def registrarLibro():
         nombre = entryNombreLibro.get()
         autor = entryAutor.get()
-        stock = entryStock.get()
+        stock = int(entryStock.get())   
 
-        if nombre == "" or autor == "" or stock == "":
-            estado.configure(text="Revise la informacion registrada.")
+        if nombre == "" or autor == "":
+            estado.configure(text="Revise la informacion registrada.")     
+
+        elif stock <= 0:
+            estado.configure(text="No puede registrar menos de un ejemplar disponible.")    
 
         else:
             consulta = "INSERT INTO libros (nombreLibro, autor, stock) VALUES (%s, %s, %s)"
@@ -550,16 +572,16 @@ infoLegal.pack(pady=20)
 
 terminosYcondiciones = tk.Label(infoLegal, text="Terminos y condiciones")
 terminosYcondiciones.pack()
-contenidoTerminos = tk.Label(infoLegal, text="""Al hacer uso de esta aplicacion da el consentimiento a Inacap para hacer uso de los datos
-personales que usted ingrese, asi mismo, acepta estar de acuerdo con la entrega de dicha informacion a las autoridades pertinentes en caso 
-de caer en el uso indebido de la informacion que este software contiene.""")
+contenidoTerminos = tk.Label(infoLegal, text="""Al hacer uso de esta aplicación da el consentimiento a Inacap para hacer uso de los datos
+personales que usted ingrese, así mismo, acepta estar de acuerdo con la entrega de dicha información a las autoridades pertinentes en caso 
+de caer en el uso indebido de la información que este software contiene.""")
 contenidoTerminos.pack()
-aceptarTerminos = tk.Label(infoLegal, text="Haga click en la casilla para comprobar que está de acuerdo con los terminos y condiciones.")
+aceptarTerminos = tk.Label(infoLegal, text="Haga clic en la casilla para comprobar que está de acuerdo con los términos y condiciones.")
 aceptarTerminos.pack()
-checkTerminos = tk.Checkbutton(infoLegal, text="Tomo conocimiento de los terminos y condiciones del Software.")
+checkTerminos = tk.Checkbutton(infoLegal, text="Tomo conocimiento de los términos y condiciones del Software.", variable=varInfoLegal, onvalue=True, offvalue=False)
 checkTerminos.pack()
 
-btnDescargarTerminos = ttk.Button(ventana, text="Descargar Terminos y Condiciones")
+btnDescargarTerminos = ttk.Button(ventana, text="Descargar Términos y Condiciones")
 btnDescargarTerminos.pack(pady=40)
 
 ventana.mainloop()
